@@ -2,6 +2,7 @@
 
 PVOID* routine_ret_address;
 BYTE origin_shell[13];
+
 BOOL ke_call_function(PVOID fn_address) {
     DbgPrint("address=%p\r\n", fn_address);
     if (fn_address == NULL)
@@ -32,7 +33,7 @@ BOOL ke_call_function(PVOID fn_address) {
             break;
     }
 
-    if (offset == 0x200) 
+    if (offset == 0x200)
         return;
 
     routine_ret_address = (PVOID*)(byte_ptr + offset);
@@ -66,7 +67,11 @@ BOOL Unhook(RtlStruct* rtl_struct) {
     return STATUS_SUCCESS;
 }
 
-NTSTATUS hook_handle(PVOID _no_param1, PVOID data, PVOID _no_param2, PVOID _no_param3) {
+NTSTATUS hook_handle(PVOID _no_param1, PVOID data, PVOID has_hook, PVOID _no_param3) {
+    if (*(INT32*)has_hook != 67) {
+        DbgPrintEx(0, 0, "unfriendly :( =%d\r\n", *(INT32*)has_hook);
+        return STATUS_INVALID_PARAMETER;
+    }
     RtlStruct* rtl_struct = (RtlStruct*)data;
     DbgPrintEx(0, 0, "select = %d\r\n", rtl_struct->io_mode);
     BOOL (*fn_array[4])(RtlStruct*) = {Write, Read, ReqBase, Unhook};

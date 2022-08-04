@@ -225,6 +225,7 @@ uint64_t call_hook(const Arg ... args) {
 int ProcessId;
 std::wstring ModName;
 ULONG64 Base;
+INT32 call_hook_code = 67;
 
 template <typename T>
 T read_mem(UINT_PTR address) {
@@ -237,7 +238,7 @@ T read_mem(UINT_PTR address) {
     rtl_struct.read = &read;
     rtl_struct.io_mode = RTL_STRUCT::IOMODE_Read;
     rtl_struct.out = &data;
-    call_hook(&rtl_struct, NULL, NULL, 0);
+    call_hook(NULL, &rtl_struct, &call_hook_code, NULL);
     return data;
 }
 
@@ -251,7 +252,7 @@ void read_mem(UINT_PTR address, T* data, int size) {
     rtl_struct.read = &read;
     rtl_struct.io_mode = RTL_STRUCT::IOMODE_Read;
     rtl_struct.out = data;
-    call_hook(NULL, &rtl_struct, NULL, NULL);
+    call_hook(NULL, &rtl_struct, &call_hook_code, NULL);
 }
 
 ULONG64 get_mod_base_address(std::wstring mod_name) {
@@ -259,7 +260,7 @@ ULONG64 get_mod_base_address(std::wstring mod_name) {
     rtl_struct.pid = ProcessId;
     rtl_struct.io_mode = RTL_STRUCT::IOMODE_ReqBase;
     rtl_struct.mod_name = mod_name.c_str();
-    call_hook(NULL, &rtl_struct, NULL, NULL);
+    call_hook(NULL, &rtl_struct, &call_hook_code, NULL);
     ULONG64 base = NULL;
     base = rtl_struct.base_address;
     return base;
@@ -295,7 +296,7 @@ void CMFCDlg::OnBnClickedButton2() {
 void CMFCDlg::OnBnClickedButton3() {
     RtlStruct rtl_struct = {0};
     rtl_struct.io_mode = RTL_STRUCT::IOMODE_Unhook;
-    call_hook(NULL, &rtl_struct, NULL, NULL);
+    call_hook(NULL, &rtl_struct, &call_hook_code, NULL);
     CDialogEx::OnOK();
 }
 
