@@ -1,0 +1,143 @@
+#include "mem.h"
+#include <windef.h>
+#include <ntddk.h>
+
+#define DEVICE_SEND(ADDRESS) CTL_CODE(FILE_DEVICE_UNKNOWN, ADDRESS, METHOD_BUFFERED, FILE_WRITE_DATA)
+#define DEVICE_REC(ADDRESS) CTL_CODE(FILE_DEVICE_UNKNOWN, ADDRESS, METHOD_BUFFERED, FILE_READ_DATA)
+
+UNICODE_STRING DeviceName = RTL_CONSTANT_STRING(L"\\Device\\mydevice0800");
+UNICODE_STRING SymLinkName = RTL_CONSTANT_STRING(L"\\??\\mydevicelink0800");
+PDEVICE_OBJECT DeviceObject = NULL;
+
+NTSTATUS DriverEntry(
+    _In_ PDRIVER_OBJECT DriverObject,
+    _In_ PUNICODE_STRING RegistryPath
+);
+
+void Unload(PDRIVER_OBJECT pdriver_object) {
+    IoDeleteSymbolicLink(&SymLinkName);
+    IoDeleteDevice(DeviceObject);
+    KdPrint(("Unload\r\n"));
+}
+
+NTSTATUS DispatchPassThru(PDEVICE_OBJECT device, PIRP irp) {
+    PIO_STACK_LOCATION irpsp = IoGetCurrentIrpStackLocation(irp);
+    NTSTATUS status = STATUS_SUCCESS;
+
+    switch (irpsp->MajorFunction) {
+    case IRP_MJ_CREATE:
+        KdPrint(("create request\r\n"));
+        break;
+    case IRP_MJ_CLOSE:
+        KdPrint(("close request\r\n"));
+        break;
+    default:
+        status = STATUS_INVALID_PARAMETER;
+        break;
+    }
+
+    irp->IoStatus.Information = 0;
+    irp->IoStatus.Status = status;
+    IoCompleteRequest(irp, IO_NO_INCREMENT);
+    return status;
+}
+
+struct MyStruct {
+    ULONG64 pid;
+    ULONG64 address;
+    INT32 value;
+};
+
+struct MyStruct my;
+
+NTSTATUS DispatchDevCTL(PDEVICE_OBJECT device, PIRP irp) {
+    PIO_STACK_LOCATION irpsp = IoGetCurrentIrpStackLocation(irp);
+    NTSTATUS status = STATUS_SUCCESS;
+
+    PVOID buffer = irp->AssociatedIrp.SystemBuffer;
+    ULONG in_length = irpsp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG out_length = irpsp->Parameters.DeviceIoControl.OutputBufferLength;
+    ULONG return_length = 0;
+
+    switch (irpsp->Parameters.DeviceIoControl.IoControlCode) {
+    case DEVICE_SEND(0x801): {
+        memcpy(&my, buffer, in_length);
+        KdPrint(("send = %d \r\n", my.pid));
+        KdPrint(("send = %d \r\n", my.address));
+        return_length = in_length; //(wcsnlen(buffer, 511) + 1) * 2
+        break;
+    }
+    case DEVICE_REC(0x802): {
+        PEPROCESS Process;
+        PsLookupProcessByProcessId((HANDLE)my.pid, &Process);
+
+        KdPrint(("PID = %d \r\n", my.pid));
+        KdPrint(("Address = %d \r\n", my.address));
+        KdPrint(("Value = %d \r\n", my.value));
+        KdPrint(("Process = %p \r\n", Process));
+
+        KeWriteProcessMemory(Process, &my.value, (PVOID)my.address, sizeof(INT32));
+        KdPrint(("Value of int i: %d\n", my.value));
+
+        memcpy(buffer, &my, out_length);
+        return_length = out_length; //(wcsnlen(buffer, 511) + 1) * 2
+        break;
+    }
+    default:
+        status = STATUS_INVALID_PARAMETER;
+        break;
+    }
+
+    irp->IoStatus.Status = status;
+    irp->IoStatus.Information = return_length;
+    IoCompleteRequest(irp, IO_NO_INCREMENT);
+
+
+    return status;
+}
+
+NTSTATUS DriverEntry(_In_ PDRIVER_OBJECT DriverObject, _In_ PUNICODE_STRING RegistryPath) {
+    UNREFERENCED_PARAMETER(DriverObject);
+    UNREFERENCED_PARAMETER(RegistryPath);
+
+    NTSTATUS statue;
+    DriverObject->DriverUnload = Unload;
+    statue = IoCreateDevice(DriverObject, 0, &DeviceName, FILE_DEVICE_UNKNOWN, FILE_DEVICE_SECURE_OPEN, FALSE,
+                            &DeviceObject);
+    if (!NT_SUCCESS(statue)) {
+        KdPrint(("failed: IoCreateDevice\r\n"));
+        return statue;
+    }
+
+    statue = IoCreateSymbolicLink(&SymLinkName, &DeviceName);
+
+    if (!NT_SUCCESS(statue)) {
+        KdPrint(("failed: IoCreateSymbolicLink\r\n"));
+        IoDeleteDevice(DeviceObject);
+        return statue;
+    }
+
+    /*for (int i = 0; i < IRP_MJ_MAXIMUM_FUNCTION; i++) {
+        DriverObject->MajorFunction[i] = DispatchPassThru;
+    }
+
+    DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DispatchDevCTL;*/
+
+    KdPrint(("success\r\n"));
+    return statue;
+}
+
+
+//disabler
+NTSTATUS NTAPI ZwProtectVirtualMemory(
+    HANDLE ProcessHandle,
+    PVOID* BaseAddress,
+    PULONG ProtectSize,
+    ULONG NewProtect,
+    PULONG OldProtect
+);
+
+
+NTKERNELAPI PPEB PsGetProcessPeb(
+    IN PEPROCESS Process
+);
