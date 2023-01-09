@@ -44,4 +44,7 @@ public:
 	CEdit pid_textbox;
 	CEdit set_val;
 	afx_msg void OnBnClickedButton193();
+	afx_msg void OnEnChangeEdit1();
+	afx_msg void OnBnClickedButton6();
+	afx_msg void OnBnClickedButton7();
 };

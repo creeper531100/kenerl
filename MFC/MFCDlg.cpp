@@ -76,6 +76,9 @@ BEGIN_MESSAGE_MAP(CMFCDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BUTTON4, &CMFCDlg::OnBnClickedButton4)
     ON_LBN_SELCHANGE(IDC_LIST1, &CMFCDlg::OnLbnSelchangeList1)
     ON_BN_CLICKED(IDC_BUTTON193, &CMFCDlg::OnBnClickedButton193)
+    ON_EN_CHANGE(IDC_EDIT1, &CMFCDlg::OnEnChangeEdit1)
+    ON_BN_CLICKED(IDC_BUTTON6, &CMFCDlg::OnBnClickedButton6)
+    ON_BN_CLICKED(IDC_BUTTON7, &CMFCDlg::OnBnClickedButton7)
 END_MESSAGE_MAP()
 
 
@@ -214,6 +217,7 @@ typedef struct RTL_STRUCT {
 template <typename ... Arg>
 uint64_t call_hook(const Arg ... args) {
     void* user_32 = LoadLibraryW(L"user32.dll");
+
     void* func_address = GetProcAddress(LoadLibraryW(L"win32u.dll"), "NtOpenCompositionSurfaceSectionInfo");
     auto func = static_cast<uint64_t(_stdcall*)(Arg ...)>(func_address);
     if (!func) {
@@ -255,6 +259,19 @@ void read_mem(UINT_PTR address, T* data, int size) {
     call_hook(NULL, &rtl_struct, &call_hook_code, NULL);
 }
 
+template <typename T>
+void write_mem(UINT_PTR address, T* data, int size) {
+    SIZE_T read;
+    RtlStruct rtl_struct;
+    rtl_struct.pid = ProcessId;
+    rtl_struct.size = size;
+    rtl_struct.address = address;
+    rtl_struct.read = &read;
+    rtl_struct.io_mode = RTL_STRUCT::IOMODE_Write;
+    rtl_struct.out = data;
+    call_hook(NULL, &rtl_struct, &call_hook_code, NULL);
+}
+
 ULONG64 get_mod_base_address(std::wstring mod_name) {
     RtlStruct rtl_struct = {0};
     rtl_struct.pid = ProcessId;
@@ -279,15 +296,25 @@ void CMFCDlg::OnBnClickedButton193() {
 }
 
 void CMFCDlg::OnBnClickedButton1() {
-
+    
 }
 
 
 void CMFCDlg::OnBnClickedButton2() {
     //讀值
+    wchar_t tmp[128];
+    GetDlgItemTextW(IDC_EDIT1, tmp, 128);
+    MessageBoxW(NULL, tmp, MB_OK);
+
+    int d = std::stoi(tmp, 0, 16);
+    MessageBoxW(L"Base", std::to_wstring(Base).c_str(), MB_OK);
+    MessageBoxW(NULL, std::to_wstring(d).c_str(), MB_OK);
+
+    //Base + 0x11C880
+
     char* buf[64];
     //int data = read_mem<int>(Base + 0xa80);//0xa80 //0x11C880
-    read_mem<char*>(Base + 0x11C880, buf, 64); //0xa80 //0x11C880
+    read_mem<char*>(d, buf, 64); //0xa80 //0x11C880
     //MessageBoxW(std::to_wstring(data).c_str(), L"", MB_OK);
     MessageBoxA(NULL, (const char*)buf, "", MB_OK);
 }
@@ -320,4 +347,42 @@ void CMFCDlg::OnBnClickedCancel() {
 
 void CMFCDlg::OnLbnSelchangeList1() {
     // TODO: 在此加入控制項告知處理常式程式碼
+}
+
+
+void CMFCDlg::OnEnChangeEdit1()
+{
+    // TODO:  如果這是 RICHEDIT 控制項，控制項將不會
+    // 傳送此告知，除非您覆寫 CDialogEx::OnInitDialog()
+    // 函式和呼叫 CRichEditCtrl().SetEventMask()
+    // 讓具有 ENM_CHANGE 旗標 ORed 加入遮罩。
+
+    // TODO:  在此加入控制項告知處理常式程式碼
+}
+
+
+void CMFCDlg::OnBnClickedButton6()
+{
+    // TODO: 在此加入控制項告知處理常式程式碼
+    MessageBoxW(L"Base", std::to_wstring(Base).c_str(), MB_OK);
+}
+
+
+void CMFCDlg::OnBnClickedButton7()
+{
+    wchar_t tmp[128];
+    GetDlgItemTextW(IDC_EDIT1, tmp, 128);
+    MessageBoxW(NULL, tmp, MB_OK);
+
+    int d = std::stoi(tmp, 0, 16);
+    MessageBoxW(L"Base", std::to_wstring(Base).c_str(), MB_OK);
+    MessageBoxW(NULL, std::to_wstring(d).c_str(), MB_OK);
+
+    //Base + 0x11C880
+
+    char* buf[64];
+    //int data = read_mem<int>(Base + 0xa80);//0xa80 //0x11C880
+    read_mem<char*>(Base + d, buf, 64); //0xa80 //0x11C880
+    //MessageBoxW(std::to_wstring(data).c_str(), L"", MB_OK);
+    MessageBoxA(NULL, (const char*)buf, "", MB_OK);
 }

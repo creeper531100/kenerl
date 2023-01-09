@@ -8,14 +8,14 @@ BOOL ke_call_function(PVOID fn_address) {
     if (fn_address == NULL)
         return FALSE;
     PVOID fn = (PVOID*)(get_system_module_export("\\SystemRoot\\System32\\drivers\\dxgkrnl.sys",
-                                                 "NtOpenCompositionSurfaceSectionInfo"));
+        "NtOpenCompositionSurfaceSectionInfo"));
 
     DbgPrint("fn=%p\r\n", fn);
     if (!fn) return FALSE;
 
-    BYTE orig[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    BYTE shell_code[] = {0x48, 0xB8}; //move rax ，易被檢測
-    BYTE shell_code_end[] = {0xFF, 0xE0, 0xC3}; //jmp rax ret
+    BYTE orig[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    BYTE shell_code[] = { 0x48, 0xB8 }; //move rax ，易被檢測
+    BYTE shell_code_end[] = { 0xFF, 0xE0, 0xC3 }; //jmp rax ret
 
     RtlSecureZeroMemory(&orig, sizeof(orig));
 
@@ -74,6 +74,6 @@ NTSTATUS hook_handle(PVOID _no_param1, PVOID data, PVOID has_hook, PVOID _no_par
     }
     RtlStruct* rtl_struct = (RtlStruct*)data;
     DbgPrintEx(0, 0, "select = %d\r\n", rtl_struct->io_mode);
-    BOOL (*fn_array[4])(RtlStruct*) = {Write, Read, ReqBase, Unhook};
+    BOOL(*fn_array[4])(RtlStruct*) = { Write, Read, ReqBase, Unhook };
     return fn_array[rtl_struct->io_mode](rtl_struct);
 }
